@@ -213,6 +213,14 @@ Our ecosystem:
 > USB installs skills. Foundry builds agents. Leosis powers intelligence.
 > Three independent layers, one ecosystem — each ships standalone, each composes with the others.
 
+## Contributing
+
+USB is built in public and contributions are genuinely welcome — bug reports,
+docs fixes, new runtime adapters, new skill domains, or security hardening.
+You don't need to write code to help. Start with
+[CONTRIBUTING.md](CONTRIBUTING.md); security issues go to
+[info@peepsickai.com](mailto:info@peepsickai.com) instead of the public tracker.
+
 ## Contact
 
 **PeepSick Labs**
