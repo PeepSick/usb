@@ -1,0 +1,52 @@
+name: usb
+
+# Docker Compose for USB — Universal Skill Bridge (self-host).
+#
+#   docker compose up -d
+#   open http://localhost:3000
+#
+# Stop:
+#   docker compose down
+#
+# Reset DB:
+#   docker compose down -v
+#
+# Override env (e.g. point to a real LLM):
+#   USB_LOG_INSTALLATIONS=on docker compose up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: usb
+      POSTGRES_PASSWORD: usb_secret_change_me
+      POSTGRES_DB: usb
+    volumes:
+      - usb-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U usb -d usb"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    ports:
+      - "127.0.0.1:5433:5432"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://usb:usb_secret_change_me@postgres:5432/usb
+      NEXT_TELEMETRY_DISABLED: "1"
+      # Uncomment to enable anonymous installation telemetry:
+      # USB_LOG_INSTALLATIONS: "on"
+    ports:
+      - "3000:3000"
+
+volumes:
+  usb-pgdata:

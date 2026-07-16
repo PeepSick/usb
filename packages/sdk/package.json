@@ -1,0 +1,48 @@
+{
+  "name": "@peepsick/usb-sdk",
+  "version": "0.4.1",
+  "description": "Universal Skill Bridge SDK. Build agents that discover, score, evolve and share USB skills.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "echo 'tests coming soon'"
+  },
+  "keywords": [
+    "usb",
+    "universal-skill-bridge",
+    "agent",
+    "ai",
+    "mcp",
+    "claude",
+    "leosis"
+  ],
+  "license": "MIT",
+  "author": "PeepSick Labs",
+  "homepage": "https://usb.peepsicklabs.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PeepSick/usb.git",
+    "directory": "packages/sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/PeepSick/usb/issues"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "dependencies": {
+    "undici": "*"
+  },
+  "devDependencies": {
+    "typescript": "*"
+  }
+}

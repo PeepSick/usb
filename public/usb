@@ -1,0 +1,421 @@
+#!/usr/bin/env bash
+# usb — Universal Skill Bridge CLI
+# https://github.com/PeepSick/usb
+#
+# Install:
+#   curl -fsSL https://usb.peepsicklabs.com/usb -o /usr/local/bin/usb && chmod +x /usr/local/bin/usb
+#
+# Usage:
+#   usb                            Open the interactive picker (no subcommand = menu)
+#   usb install <slug>             Install a single skill
+#   usb install <domain>           Install one domain (8 workflows)
+#   usb install <preset>           Install a curated preset (web-dev, backend, security, ...)
+#   usb install                    Install the whole pack (529 skills)
+#   usb install --target=claude    Pick a runtime explicitly
+#   usb install --dry-run          Show the install script without executing
+#   usb search <query>             Search the catalog
+#   usb info <slug>                Show details about one skill
+#   usb list                       List all skills
+#   usb version                    Show USB pack version
+#   usb --help                     Show this help
+#
+# Environment:
+#   USB_BASE_URL    Override the catalog host (default https://usb.peepsicklabs.com)
+#   USB_TARGET      Default runtime target (default: auto)
+
+set -euo pipefail
+
+USB_BASE_URL="${USB_BASE_URL:-https://usb.peepsicklabs.com}"
+USB_TARGET="${USB_TARGET:-auto}"
+
+# --- pretty output helpers ---------------------------------------------------
+RED=$'\033[0;31m'
+GRN=$'\033[0;32m'
+YEL=$'\033[0;33m'
+CYA=$'\033[0;36m'
+DIM=$'\033[2m'
+RST=$'\033[0m'
+
+info() { printf '%s▸%s %s\n' "$CYA" "$RST" "$*"; }
+ok()   { printf '%s✓%s %s\n' "$GRN" "$RST" "$*"; }
+warn() { printf '%s!%s %s\n' "$YEL" "$RST" "$*" >&2; }
+err()  { printf '%s✗%s %s\n' "$RED" "$RST" "$*" >&2; }
+
+usage() {
+  sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'
+}
+
+# --- ensure curl + bash present ---------------------------------------------
+for bin in curl bash; do
+  if ! command -v "$bin" >/dev/null 2>&1; then
+    err "Missing required tool: $bin"
+    exit 1
+  fi
+done
+
+# --- version subcommand ------------------------------------------------------
+cmd_version() {
+  local v
+  v=$(curl -fsSL "$USB_BASE_URL/api/version" 2>/dev/null || true)
+  if [ -z "$v" ]; then
+    err "Could not reach $USB_BASE_URL"
+    exit 1
+  fi
+  printf '%s\n' "$v"
+}
+
+# --- search subcommand (uses /api/skills?search=...) -------------------------
+cmd_search() {
+  local query="${1:-}"
+  if [ -z "$query" ]; then
+    err "search needs a query"
+    exit 1
+  fi
+  local url="$USB_BASE_URL/api/skills?target=generic"
+  info "Searching $USB_BASE_URL for '$query' ..."
+  curl -fsSL "$url" | python3 - "$query" <<'PY' || {
+import json, sys
+query = sys.argv[1].lower() if len(sys.argv) > 1 else ""
+data = json.load(sys.stdin)
+hits = [s for s in data["bundle"]["skills"]
+        if query in s["slug"].lower() or query in s["name"].lower()
+        or query in s.get("description", "").lower()
+        or query in s.get("category", "").lower()]
+for s in hits[:30]:
+    print(f"  {s['slug']:42s}  {s.get('category',''):20s}  {s.get('name','')}")
+print(f"\n{len(hits)} match(es).")
+PY
+    warn "python3 not available — falling back to grep on full manifest"
+    curl -fsSL "$url" | grep -iE "$query" | head -30 || true
+  }
+}
+
+# --- info subcommand ---------------------------------------------------------
+cmd_info() {
+  local slug="${1:-}"
+  if [ -z "$slug" ]; then
+    err "info needs a skill slug (try: usb info intent-router)"
+    exit 1
+  fi
+  curl -fsSL "$USB_BASE_URL/api/audit/$slug" | python3 -m json.tool || {
+    err "Skill not found: $slug"
+    exit 1
+  }
+}
+
+# --- list subcommand ---------------------------------------------------------
+cmd_list() {
+  local url="$USB_BASE_URL/api/skills?target=generic"
+  curl -fsSL "$url" | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+for s in d["bundle"]["skills"]:
+    print(f"  {s[\"slug\"]:42s}  {s.get(\"category\",\"\"):20s}  {s.get(\"name\",\"\")}")
+' || {
+    warn "python3 not available"
+    curl -fsSL "$url" | grep -oE '"slug": "[^"]+"' | head -100
+  }
+}
+
+# --- install subcommand ------------------------------------------------------
+cmd_install() {
+  local filter_args=""
+  local target="$USB_TARGET"
+  local show_script=0
+
+  # Parse args: any --key=value gets forwarded; positional arg becomes filter.
+  for arg in "$@"; do
+    case "$arg" in
+      --target=*)  target="${arg#--target=}" ;;
+      --dry-run)   show_script=1 ;;
+      --help|-h)   usage; exit 0 ;;
+      --*)         warn "Unknown flag: $arg" ;;
+      *)
+        # First positional arg determines filter key by preset detection.
+        if [ -z "${filter_args:-}" ]; then
+          # Heuristic: presets end in -only / contain "dev" / "backend" / "security" / "data" / "infra" /
+          # names that match known presets exactly.
+          case "$arg" in
+            core-only|web-dev|backend|infra|security|data)
+              filter_args="preset=$arg" ;;
+            *)
+              # If it contains a hyphen and matches no known preset, treat as slug.
+              # Otherwise treat as preset (in case new presets are added).
+              if curl -fsSL "$USB_BASE_URL/api/skills?target=generic&slug=$arg" | grep -q "\"slug\": \"$arg\""; then
+                filter_args="slug=$arg"
+              else
+                filter_args="domain=$arg"
+              fi
+              ;;
+          esac
+        fi
+        ;;
+    esac
+  done
+
+  local url="$USB_BASE_URL/api/install?target=$target"
+  if [ -n "${filter_args:-}" ]; then
+    url="$url&$filter_args"
+  fi
+
+  if [ "$show_script" = "1" ]; then
+    info "Dry run — installer script:"
+    curl -fsSL "$url"
+    return 0
+  fi
+
+  info "Installing via $url ..."
+  curl -fsSL "$url" | bash
+  ok "Done."
+}
+
+# --- interactive picker ------------------------------------------------------
+cmd_interactive() {
+  printf '\n'
+  printf '%s╔══════════════════════════════════════════════════════════════╗%s\n' "$CYA" "$RST"
+  printf '%s║%s   %sUSB — Universal Skill Bridge%s                                %s║%s\n' "$CYA" "$RST" "$BOLD" "$RST" "$CYA" "$RST"
+  printf '%s║%s   %sA plug-and-play skill system for AI agents%s               %s║%s\n' "$CYA" "$RST" "$DIM" "$RST" "$CYA" "$RST"
+  printf '%s╚══════════════════════════════════════════════════════════════╝%s\n' "$CYA" "$RST"
+  printf '\n'
+
+  # Verify we can reach the catalog before showing the menu.
+  local version_json
+  version_json=$(curl -fsSL "$USB_BASE_URL/api/version" 2>/dev/null) || {
+    err "Cannot reach USB catalog at $USB_BASE_URL"
+    exit 1
+  }
+  local total_skills
+  total_skills=$(printf '%s' "$version_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["current"])' 2>/dev/null || echo "?")
+  printf '%s  Catalog:%s  %s · %s skills available\n\n' "$DIM" "$RST" "$USB_BASE_URL" "$total_skills"
+
+  local choices=(
+    "🌐 Full pack (all 529 skills)"
+    "⚡ Pick a single skill"
+    "🧩 Pick a domain (65 × 8 workflows)"
+    "📂 Pick a category (Orchestration, Security, Audit, ...)"
+    "🎯 Pick a curated preset (web-dev, backend, security, ...)"
+    "🧠 Just the 9 core orchestration skills"
+    "🔍 Search by keyword"
+    "❌ Exit"
+  )
+  PS3=$'\n  Choose a number (1-8): '
+  select opt in "${choices[@]}"; do
+    case "$opt" in
+      "🌐 Full pack"*)            cmd_install ;;
+        break ;;
+      "⚡ Pick a single skill")
+        local slug
+        slug=$(pick_slug)
+        [ -n "$slug" ] && cmd_install "$slug"
+        break ;;
+      "🧩 Pick a domain"*)
+        local domain
+        domain=$(pick_domain)
+        [ -n "$domain" ] && cmd_install "$domain"
+        break ;;
+      "📂 Pick a category"*)
+        local category
+        category=$(pick_category)
+        [ -n "$category" ] && cmd_install "$category"
+        break ;;
+      "🎯 Pick a curated preset"*)
+        local preset
+        preset=$(pick_preset)
+        [ -n "$preset" ] && cmd_install "$preset"
+        break ;;
+      "🧠 Just the 9 core"*)
+        cmd_install core-only
+        break ;;
+      "🔍 Search by keyword")
+        local query
+        printf '\n  Search term: '
+        read -r query
+        if [ -n "$query" ]; then
+          cmd_search "$query"
+          printf '\n  Install one of these? Enter slug (or empty to skip): '
+          local picked
+          read -r picked
+          [ -n "$picked" ] && cmd_install "$picked"
+        fi
+        break ;;
+      "❌ Exit"|"")
+        printf '\n  %sBye! 👋%s\n\n' "$DIM" "$RST"
+        exit 0 ;;
+      *)
+        warn "Invalid choice"
+        ;;
+    esac
+  done
+}
+
+# Generic picker — takes a title, fetches a JSON list from an extractor,
+# presents a numbered menu, returns the chosen value (or empty string).
+_picker() {
+  local title="$1"
+  local extractor="$2"   # python expression that turns a Skill into a "<slug>  <name>"
+  shift 2
+  local data
+  data=$(curl -fsSL "$USB_BASE_URL/api/skills?target=generic") || {
+    err "Could not fetch catalog"
+    return 1
+  }
+
+  # Build a numbered list of "<n>|<value>" pairs.
+  local items
+  items=$(printf '%s' "$data" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+skills = d['bundle']['skills']
+for i, s in enumerate(skills, 1):
+    val = ($extractor)
+    print(f'{i}|{val}')
+" 2>/dev/null) || {
+    err "python3 not available for picker"
+    return 1
+  }
+
+  printf '\n  %s%s%s\n' "$BOLD" "$title" "$RST"
+  printf '  %s(Type a number, then Enter. Empty line = cancel)%s\n\n' "$DIM" "$RST"
+
+  # Render in 3 columns so the picker stays compact.
+  local i=1
+  while IFS='|' read -r n val; do
+    printf '  %s%4d)%s %-44s' "$CYA" "$i" "$RST" "$val"
+    if [ $((i % 3)) -eq 0 ]; then printf '\n'; fi
+    i=$((i+1))
+  done <<< "$items"
+  if [ $(( (i-1) % 3)) -ne 0 ]; then printf '\n'; fi
+
+  printf '\n  Number: '
+  local pick
+  read -r pick
+  if [ -z "$pick" ]; then
+    return 1
+  fi
+  # Validate it's a number in range.
+  if ! [[ "$pick" =~ ^[0-9]+$ ]]; then
+    err "Not a number"
+    return 1
+  fi
+  # Look up the value at that index.
+  printf '%s\n' "$items" | sed -n "${pick}p" | cut -d'|' -f2-
+}
+
+# Specific pickers: extract the right field for each mode.
+pick_slug()    { _picker "Pick a single skill"          's["slug"]'; }
+pick_domain()  { _picker "Pick a domain (8 workflows each)" \
+                  's["slug"].rsplit("-", 1)[0] if "-" in s["slug"] else s["slug"]' \
+                  | awk -F'-' '{ if (NF==1) print $1; else { out=$1; for (i=2;i<NF;i++) out=out"-"$i; print out } }' \
+                  | sort -u \
+                  | awk 'BEGIN{i=1}{print i"|"$0; i++}' \
+                  | { read -r first; printf '%s\n' "$first" | cut -d'|' -f2-; cat; } \
+                  || true; }
+
+# Simpler domain picker: just collect unique domain prefixes from slugs.
+pick_domain() {
+  printf '\n  %sPick a domain%s\n' "$BOLD" "$RST"
+  printf '  %s(Type a number, then Enter. Empty line = cancel)%s\n\n' "$DIM" "$RST"
+  local domains
+  domains=$(curl -fsSL "$USB_BASE_URL/api/skills?target=generic" | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+seen = set()
+for s in d["bundle"]["skills"]:
+    slug = s["slug"]
+    if "-" in slug:
+        parts = slug.rsplit("-", 1)
+        domain = parts[0]
+    else:
+        domain = slug
+    if domain not in seen:
+        seen.add(domain)
+        print(f"{domain}|{s.get(\"name\", domain)}")
+' 2>/dev/null)
+  if [ -z "$domains" ]; then
+    err "Could not load domain list"
+    return 1
+  fi
+  local i=1
+  while IFS='|' read -r slug name; do
+    printf '  %s%3d)%s %-32s' "$CYA" "$i" "$RST" "$slug"
+    if [ $((i % 3)) -eq 0 ]; then printf '\n'; fi
+    i=$((i+1))
+  done <<< "$domains"
+  if [ $(( (i-1) % 3)) -ne 0 ]; then printf '\n'; fi
+  printf '\n  Number: '
+  local pick
+  read -r pick
+  [ -z "$pick" ] && return 1
+  printf '%s\n' "$domains" | sed -n "${pick}p" | cut -d'|' -f1
+}
+
+pick_category() {
+  printf '\n  %sPick a category%s\n' "$BOLD" "$RST"
+  printf '  %s(Type a number, then Enter. Empty line = cancel)%s\n\n' "$DIM" "$RST"
+  local cats
+  cats=$(curl -fsSL "$USB_BASE_URL/api/skills?target=generic" | python3 -c '
+import json, sys, collections
+d = json.load(sys.stdin)
+counts = collections.Counter(s.get("category", "Other") for s in d["bundle"]["skills"])
+for cat, n in counts.most_common():
+    print(f"{cat}|{n}")
+' 2>/dev/null)
+  if [ -z "$cats" ]; then
+    err "Could not load category list"
+    return 1
+  fi
+  local i=1
+  while IFS='|' read -r cat n; do
+    printf '  %s%3d)%s %-32s %s(%d skills)%s\n' "$CYA" "$i" "$RST" "$cat" "$DIM" "$n" "$RST"
+    i=$((i+1))
+  done <<< "$cats"
+  printf '\n  Number: '
+  local pick
+  read -r pick
+  [ -z "$pick" ] && return 1
+  printf '%s\n' "$cats" | sed -n "${pick}p" | cut -d'|' -f1
+}
+
+pick_preset() {
+  printf '\n  %sPick a preset%s\n' "$BOLD" "$RST"
+  printf '  %s(Type a number, then Enter. Empty line = cancel)%s\n\n' "$DIM" "$RST"
+  local presets=(
+    "web-dev|React, Next.js, TypeScript, CSS, browser automation"
+    "backend|Node.js, Python, FastAPI, SQL, Redis"
+    "infra|Docker, Kubernetes, Terraform, GitHub Actions, AWS, Azure"
+    "security|OAuth, RLS, prompt injection, secrets, hardening"
+    "data|SQL, RAG, vector search, OpenAPI, GraphQL, prompt engineering"
+    "core-only|Router + planner + memory + verification only (9 skills)"
+  )
+  local i=1
+  for entry in "${presets[@]}"; do
+    local slug="${entry%%|*}"
+    local desc="${entry#*|}"
+    printf '  %s%3d)%s %-14s %s%s%s\n' "$CYA" "$i" "$RST" "$slug" "$DIM" "$desc" "$RST"
+    i=$((i+1))
+  done
+  printf '\n  Number: '
+  local pick
+  read -r pick
+  [ -z "$pick" ] && return 1
+  if ! [[ "$pick" =~ ^[0-9]+$ ]]; then return 1; fi
+  printf '%s' "${presets[$((pick-1))]}" | cut -d'|' -f1
+}
+
+# --- dispatcher --------------------------------------------------------------
+[ $# -eq 0 ] && { cmd_interactive; exit 0; }
+
+case "${1:-}" in
+  install)       shift; cmd_install "$@" ;;
+  i|interactive) shift; cmd_interactive ;;
+  search)        shift; cmd_search "$@" ;;
+  info)          shift; cmd_info "$@" ;;
+  list)          shift; cmd_list "$@" ;;
+  version|-V|--version) cmd_version ;;
+  -h|--help|help) usage ;;
+  *)
+    err "Unknown subcommand: $1"
+    usage
+    exit 1
+    ;;
+esac

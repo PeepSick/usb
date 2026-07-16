@@ -1,0 +1,10 @@
+{
+  "name": "oauth-agent",
+  "version": "0.1.0",
+  "author": "PeepSick Labs",
+  "description": "OAuth + token rotation hardening.",
+  "skills": ["oauth-flows", "prompt-injection-defense", "secrets-rotation"],
+  "presets": ["security"],
+  "tags": ["auth", "security", "oauth"],
+  "minUsbVersion": "0.4.0"
+}

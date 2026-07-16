@@ -1,0 +1,33 @@
+# Node / build artifacts
+node_modules/
+.next/
+.turbo/
+out/
+build/
+dist/
+
+# Env files (NEVER commit secrets)
+.env
+.env.local
+.env.*.local
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# Local tooling
+mavischeck/
+test-*.py
+test-*.sh
+bump-version.sh
+debug-filter.py
+domains-check.js
+cwb-skills.json
+nginx-*.conf
+
+# Logs
+*.log
+npm-debug.log*

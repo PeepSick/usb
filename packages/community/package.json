@@ -1,0 +1,16 @@
+{
+  "name": "@peepsick/usb-community",
+  "version": "0.0.1",
+  "description": "Community-maintained USB agents and skill bundles. Submit yours as a PR.",
+  "type": "module",
+  "private": true,
+  "keywords": ["usb", "universal-skill-bridge", "agents", "community"],
+  "license": "MIT",
+  "author": "PeepSick Labs",
+  "homepage": "https://usb.peepsicklabs.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PeepSick/usb.git",
+    "directory": "packages/community"
+  }
+}
