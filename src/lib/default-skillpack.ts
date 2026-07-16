@@ -721,4 +721,4 @@ const GENERATED_SKILLS = DOMAINS.flatMap((domain) =>
 
 export const DEFAULT_SKILLS: SeedSkill[] = [...CORE_SKILLS, ...GENERATED_SKILLS];
 export const DEFAULT_SKILL_COUNT = DEFAULT_SKILLS.length;
-export const DEFAULT_SKILL_SOURCE = "https://github.com/universal-skill-bridge/skills";
+export const DEFAULT_SKILL_SOURCE = "https://github.com/PeepSick/usb";
