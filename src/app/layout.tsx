@@ -45,7 +45,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <script
-          src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"
+          src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"
+          integrity="sha384-T/0lMUdJpd2S1ZHtRiofG3htU3xPCrFVeAQ1UUE2TJwlEJSV5NUwn30kP28n238E"
+          crossOrigin="anonymous"
           async
         />
         <script

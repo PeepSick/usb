@@ -1,6 +1,6 @@
 {
   "name": "@peepsick/usb-sdk",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "Universal Skill Bridge SDK. Build agents that discover, score, evolve and share USB skills.",
   "type": "module",
   "main": "./dist/index.js",
@@ -43,6 +43,7 @@
     "undici": "*"
   },
   "devDependencies": {
-    "typescript": "*"
+    "typescript": "*",
+    "@types/node": "22.19.15"
   }
 }

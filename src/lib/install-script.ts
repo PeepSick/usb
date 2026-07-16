@@ -1,4 +1,21 @@
+import crypto from "node:crypto";
 import type { SkillBundle } from "@/lib/skill-registry";
+
+// Slugs and versions are interpolated into bash lines below. Nothing outside
+// these charsets may reach the script, no matter what the DB contains —
+// community/third-party skill sources must not become shell injection.
+const SLUG_RE = /^[a-z0-9-]{1,64}$/;
+const VERSION_RE = /^[0-9A-Za-z.-]{1,32}$/;
+
+function safeSlug(slug: string): string {
+  if (!SLUG_RE.test(slug)) throw new Error(`unsafe slug rejected: ${JSON.stringify(slug)}`);
+  return slug;
+}
+
+function safeVersion(version: string): string {
+  if (!VERSION_RE.test(version)) throw new Error(`unsafe version rejected: ${JSON.stringify(version)}`);
+  return version;
+}
 
 function asToolName(slug: string): string {
   return slug.replace(/[^a-zA-Z0-9_]/g, "_");
@@ -108,25 +125,39 @@ ${skillList}
 }
 
 function heredoc(destination: string, marker: string, content: string): string {
+  // Belt and braces: markerFor() makes a collision computationally
+  // infeasible, but if content ever does contain its terminator, refuse to
+  // render rather than emit a script whose tail executes as bash.
+  if (content.includes(marker)) {
+    throw new Error(`heredoc marker collision for ${destination}`);
+  }
   return `write_file ${destination} <<'${marker}'\n${content.trimEnd()}\n${marker}\n`;
 }
 
-function markerFor(prefix: string, value: string): string {
-  return `__USB_${prefix}_${value.replace(/[^a-zA-Z0-9]/g, "_").toUpperCase()}__`;
+function markerFor(prefix: string, content: string): string {
+  // Marker derived from the content's own hash: deterministic across renders
+  // (so /api/install and /api/install-sha256 stay byte-identical) yet
+  // unforgeable — embedding the marker in content changes the hash, so a
+  // heredoc-escaping fixpoint would require a sha256 preimage.
+  const digest = crypto.createHash("sha256").update(content).digest("hex").slice(0, 16).toUpperCase();
+  return `__USB_${prefix}_${digest}__`;
 }
 
 export function renderInstallScript(bundle: SkillBundle): string {
+  safeSlug(bundle.pack.slug);
+  safeVersion(bundle.pack.version);
   const manifest = JSON.stringify(bundle, null, 2);
   const adapterDescriptor = JSON.stringify(buildAdapterDescriptor(bundle), null, 2);
   const cursorRules = buildCursorRules(bundle);
   const skillFiles = bundle.skills
-    .map((skill) =>
-      heredoc(
-        `"$PACK_DIR/skills/${skill.slug}.md"`,
-        markerFor("SKILL", skill.slug),
-        toSkillMarkdown(skill),
-      ),
-    )
+    .map((skill) => {
+      const markdown = toSkillMarkdown(skill);
+      return heredoc(
+        `"$PACK_DIR/skills/${safeSlug(skill.slug)}.md"`,
+        markerFor("SKILL", markdown),
+        markdown,
+      );
+    })
     .join("\n");
 
   return `#!/usr/bin/env bash
@@ -244,9 +275,9 @@ fi
 
 do_or_show mkdir -p "$PACK_DIR/skills" "$ROOT/adapters/$TARGET"
 
-${heredoc('"$PACK_DIR/skillpack.json"', "__USB_SKILLPACK_JSON__", manifest)}
-${heredoc('"$PACK_DIR/adapter.bridge.json"', "__USB_ADAPTER_JSON__", adapterDescriptor)}
-${heredoc('"$PACK_DIR/cursor-rule.mdc"', "__USB_CURSOR_RULE__", cursorRules)}
+${heredoc('"$PACK_DIR/skillpack.json"', markerFor("SKILLPACK_JSON", manifest), manifest)}
+${heredoc('"$PACK_DIR/adapter.bridge.json"', markerFor("ADAPTER_JSON", adapterDescriptor), adapterDescriptor)}
+${heredoc('"$PACK_DIR/cursor-rule.mdc"', markerFor("CURSOR_RULE", cursorRules), cursorRules)}
 ${skillFiles}
 case "$TARGET" in
   leosis)

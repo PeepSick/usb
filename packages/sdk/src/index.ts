@@ -70,6 +70,11 @@ export type AgentOptions = {
   installDir?: string;
 };
 
+/** Catalog filter expression accepted by /api/install and /api/install-sha256. */
+export type InstallFilter = Partial<
+  Record<"slug" | "domain" | "category" | "preset" | "core" | "exclude", string>
+>;
+
 export class SkillRegistry {
   private readonly baseUrl: string;
   private readonly target: AgentTarget;
@@ -113,17 +118,50 @@ export class SkillRegistry {
       .slice(0, limit);
   }
 
+  /** Identical query string for /api/install and /api/install-sha256 — the
+   *  advertised hash only matches when both endpoints see the same filter. */
+  private filterQuery(filter: InstallFilter): string {
+    return new URLSearchParams({ target: this.target, ...filter as Record<string, string> }).toString();
+  }
+
   /** Render the install script for a filter expression (slug, domain, preset, etc). */
-  async renderInstallScript(filter: Partial<Record<"slug" | "domain" | "category" | "preset" | "core" | "exclude", string>>): Promise<string> {
-    const qs = new URLSearchParams({ target: this.target, ...filter as Record<string, string> });
-    const res = await fetch(`${this.baseUrl}/api/install?${qs.toString()}`);
+  async renderInstallScript(filter: InstallFilter): Promise<string> {
+    const res = await fetch(`${this.baseUrl}/api/install?${this.filterQuery(filter)}`);
     if (!res.ok) throw new Error(`USB install render failed: ${res.status}`);
     return await res.text();
   }
 
-  /** Pull + execute the install script via bash (POSIX only). */
-  async install(filter: Parameters<SkillRegistry["renderInstallScript"]>[0]): Promise<{ ok: true; output: string } | { ok: false; error: string }> {
+  /** Fetch the registry-advertised sha256 for the same filter expression. */
+  async installScriptSha256(filter: InstallFilter): Promise<string> {
+    const res = await fetch(`${this.baseUrl}/api/install-sha256?${this.filterQuery(filter)}`);
+    if (!res.ok) throw new Error(`USB sha256 fetch failed: ${res.status}`);
+    const hash = (await res.text()).trim();
+    if (!/^[0-9a-f]{64}$/.test(hash)) {
+      throw new Error("USB sha256 endpoint returned an unexpected payload");
+    }
+    return hash;
+  }
+
+  /**
+   * Pull, verify and execute the install script via bash (POSIX only).
+   *
+   * The script is checked against the registry-advertised sha256 before bash
+   * ever sees it. A same-origin hash cannot defeat a compromised registry —
+   * it exists to catch truncation, proxy/cache corruption and broken deploys.
+   */
+  async install(filter: InstallFilter): Promise<{ ok: true; output: string } | { ok: false; error: string }> {
     const script = await this.renderInstallScript(filter);
+    const [{ createHash }, expected] = await Promise.all([
+      import("node:crypto"),
+      this.installScriptSha256(filter),
+    ]);
+    const actual = createHash("sha256").update(script).digest("hex");
+    if (actual !== expected) {
+      return {
+        ok: false,
+        error: `sha256 mismatch: registry advertises ${expected}, downloaded script hashes to ${actual} — refusing to execute`,
+      };
+    }
     const { spawnSync } = await import("node:child_process");
     const r = spawnSync("bash", ["-c", script], { encoding: "utf-8" });
     if (r.status === 0) return { ok: true, output: r.stdout };
