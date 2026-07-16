@@ -4,7 +4,7 @@
   "description": "Universal Skill Bridge CLI — install, search and inspect AI agent skills from your terminal.",
   "type": "module",
   "bin": {
-    "usb": "./bin/usb"
+    "usb": "bin/usb"
   },
   "files": [
     "bin",
@@ -27,7 +27,7 @@
   "homepage": "https://usb.peepsicklabs.com",
   "repository": {
     "type": "git",
-    "url": "https://github.com/PeepSick/usb.git",
+    "url": "git+https://github.com/PeepSick/usb.git",
     "directory": "packages/cli"
   },
   "bugs": {
