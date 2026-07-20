@@ -46,6 +46,7 @@
     "postcss": "$postcss",
     "@esbuild-kit/core-utils": {
       "esbuild": "^0.25.0"
-    }
+    },
+    "js-yaml": "^4.3.0"
   }
 }
