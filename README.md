@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>npm for AI agent skills.</b><br>
-  Install, share, and compose reusable capabilities across any agent runtime.
+  Write a skill once. Run it anywhere — Claude, Cursor, LangChain, MCP, and 12 more.
 </p>
 
 <p align="center">
@@ -21,6 +21,9 @@
   </a>
   <a href="https://usb.peepsicklabs.com">
     <img src="https://img.shields.io/website-up-down-green-red/https/usb.peepsicklabs.com.svg?style=flat-square&label=live">
+  </a>
+  <a href="https://github.com/PeepSick/usb/actions/workflows/readme-check.yml">
+    <img src="https://github.com/PeepSick/usb/actions/workflows/readme-check.yml/badge.svg">
   </a>
   <a href="https://www.npmjs.com/package/@peepsick/usb-sdk">
     <img src="https://img.shields.io/npm/dt/@peepsick/usb-sdk.svg?style=flat-square&label=downloads">
@@ -44,6 +47,30 @@ usb install web-dev --target=claude
 ```
 
 That's it — `usb` detects your agent runtime (Claude, Cursor, LangChain, MCP, local models, ...) and drops a runtime-native skill package in the right place.
+
+## See it in action
+
+Real output from the live catalog (v0.4.1) — not mocked up:
+
+```bash
+$ usb search postgres
+  database-migration-safety-audit             Audit                 Database Migration Safety: Audit
+  multi-tenant-isolation-audit                Audit                 Multi-Tenant Data Isolation: Audit
+  database-migration-safety-script            Automation            Database Migration Safety: Script
+  multi-tenant-isolation-script               Automation            Multi-Tenant Data Isolation: Script
+  database-migration-safety-diagnose          Diagnostics           Database Migration Safety: Diagnose
+  multi-tenant-isolation-diagnose             Diagnostics           Multi-Tenant Data Isolation: Diagnose
+  ...
+16 match(es).
+```
+
+```bash
+$ usb install web-dev --target=claude
+✅ universal-skill-bridge-catalog v0.4.1 installed for target: claude (73 skills)
+📦 Portable pack: ~/.ai-skills/universal-skill-bridge-catalog
+🔌 Target files: ~/.claude/skills/universal-skill-bridge-catalog
+📝 Local registry: ~/.ai-skills/universal-skill-bridge-catalog/installed.json
+```
 
 ## Why USB?
 
@@ -153,6 +180,20 @@ Transport is HTTP JSON-RPC 2.0. Exposed tools:
 
 ## Architecture
 
+The core idea: one skill definition, rendered into every runtime's native format. You write it once — USB handles the packaging for all 16 targets.
+
+```mermaid
+flowchart LR
+    S[One skill definition] --> R{Installer Generator}
+    R --> T1[Claude Code: SKILL.md]
+    R --> T2[Cursor: .mdc rule]
+    R --> T3[MCP: tool descriptor]
+    R --> T4[LangChain / OpenAI /<br>Anthropic: tool JSON]
+    R --> T5[12 more targets]
+```
+
+Request flow, end to end:
+
 ```mermaid
 flowchart LR
     A[Agent / Developer] -->|usb CLI or MCP| B[USB Catalog API]
@@ -163,6 +204,8 @@ flowchart LR
 ```
 
 ## Supported targets
+
+16 runtimes, one skill format:
 
 `leosis` · `auto` · `claude` · `hermes` · `openai` · `anthropic` · `langchain` · `cursor` · `mcp` · `generic` · `openrouter` · `groq` · `mistral` · `ollama` · `lm-studio` · `vllm`
 
@@ -194,7 +237,8 @@ That said, USB is a fully independent implementation built from scratch. All arc
 
 - Skill marketplace
 - Verified skill badges
-- CI-based skill validation
+- CI-based skill validation (schema/lint checks for new skill submissions)
+- README-driven test harness — auto-extract and run labeled code blocks from this file in CI, instead of hand-syncing `scripts/verify-readme.sh`
 - Versioned skill contracts
 - Agent runtime certification layer
 
@@ -220,6 +264,14 @@ docs fixes, new runtime adapters, new skill domains, or security hardening.
 You don't need to write code to help. Start with
 [CONTRIBUTING.md](CONTRIBUTING.md); security issues go to
 [info@peepsickai.com](mailto:info@peepsickai.com) instead of the public tracker.
+
+Before opening a PR that touches the CLI, installer, or this README, run
+`bash scripts/verify-readme.sh` — it runs the commands documented above
+against the live catalog and fails on errors, leaked tracebacks, or
+non-English regressions. `python3 scripts/check-encoding.py` scans the full
+529-skill catalog for double-encoding corruption (mojibake), not just the
+handful of skills the README happens to reference. CI runs both on every PR
+and daily on a schedule.
 
 ## Contact
 
