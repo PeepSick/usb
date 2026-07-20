@@ -1,6 +1,6 @@
 {
   "name": "@peepsick/usb-cli",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Universal Skill Bridge CLI — install, search and inspect AI agent skills from your terminal.",
   "type": "module",
   "bin": {
