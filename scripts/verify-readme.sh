@@ -37,9 +37,20 @@ check() {
     FAILED=1
     return
   fi
-  if echo "$output" | grep -qP '[çğıöşüÇĞİÖŞÜ]'; then
+  # Python, not `grep -P`: grep -P's Unicode character-class matching has
+  # been observed to false-positive on plain emoji (✅ 📦 🔌 💡) in some
+  # locale/PCRE combinations, which would make this check untrustworthy.
+  # Python's re operates on properly decoded text, so it doesn't.
+  if ! printf '%s' "$output" | python3 -c "
+import sys
+sys.stdin.reconfigure(encoding='utf-8')
+turkish = set('çğıöşüÇĞİÖŞÜ')
+hits = [line.rstrip() for line in sys.stdin if any(ch in turkish for ch in line)]
+if hits:
+    print('\n'.join(hits))
+    sys.exit(1)
+"; then
     echo "❌ FAILED (non-English text found): $desc"
-    echo "$output" | grep -P '[çğıöşüÇĞİÖŞÜ]'
     FAILED=1
     return
   fi
