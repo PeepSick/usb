@@ -36,26 +36,26 @@ tags: ${skill.metadata.tags.join(", ")}
 
 ${skill.description}
 
-## Ne zaman çağrılır?
+## When to use it
 ${skill.triggerPhrase}
 
-## Çalışma protokolü
+## Protocol
 ${skill.promptTemplate}
 
-## Girdi sözleşmesi
+## Input contract
 ${skill.inputs
   .map(
     (input) =>
-      `- **${input.name}** (${input.kind}${input.required ? ", zorunlu" : ", opsiyonel"}): ${input.description}`,
+      `- **${input.name}** (${input.kind}${input.required ? ", required" : ", optional"}): ${input.description}`,
   )
   .join("\n")}
 
-## Çıktı sözleşmesi
+## Output contract
 ${skill.outputs
   .map((output) => `- **${output.name}** (${output.kind}): ${output.description}`)
   .join("\n")}
 
-## Örnek kullanımlar
+## Examples
 ${skill.examples.map((example) => `- ${example}`).join("\n")}
 `;
 }
@@ -96,7 +96,7 @@ function buildCursorRules(bundle: SkillBundle): string {
   const skillList = bundle.skills
     .map(
       (skill) =>
-        `- ${skill.slug}: ${skill.triggerPhrase} Çıktı: ${skill.outputs
+        `- ${skill.slug}: ${skill.triggerPhrase} Output: ${skill.outputs
           .map((output) => output.kind)
           .join(", ")}.`,
     )
@@ -110,17 +110,17 @@ alwaysApply: false
 
 # ${bundle.pack.name}
 
-Bu rule dosyası, modüler skill paketini IDE ajanına kompakt router olarak tanıtır.
+This rule file introduces the modular skill pack to the IDE agent as a compact router.
 
-## Router kuralı
-Kullanıcı isteğini önce niyet, risk, bağlam ve gerekli çıktı tipine göre sınıflandır. Aşağıdaki skill slug'larından en uygun olanı seç, kısa gerekçe yaz ve ilgili skill protokolünü uygula.
+## Router rule
+Classify the user's request first by intent, risk, context, and required output type. Pick the best-fitting skill slug below, write a brief rationale, and apply that skill's protocol.
 
 ${skillList}
 
-## Genel güvenlik
-- Secret değerleri client bundle'a yazma.
-- Kod değişikliği sonrası doğrulama komutlarını çalıştırmadan işi bitmiş sayma.
-- Hedef runtime bilinmiyorsa generic markdown + JSON manifest davranışına dön.
+## General safety
+- Never write secret values into the client bundle.
+- Never consider a code change done without running its verification commands.
+- Fall back to generic markdown + JSON manifest behavior if the target runtime is unknown.
 `;
 }
 
@@ -368,11 +368,12 @@ if [ "$USB_CHECK" = "1" ]; then
   exit 0
 fi
 
-echo "✅ $PACK_SLUG v$PACK_VERSION installed for target: $TARGET ($SKILL_COUNT skills)"
+SKILL_UNIT="skills"; [ "$SKILL_COUNT" = "1" ] && SKILL_UNIT="skill"
+echo "✅ $PACK_SLUG v$PACK_VERSION installed for target: $TARGET ($SKILL_COUNT $SKILL_UNIT)"
 echo "📦 Portable pack: $PACK_DIR"
 echo "🔌 Target files: \${DEST:-$PACK_DIR}"
 echo "📝 Local registry: $INSTALL_RECORD"
-echo "ℹ️  Tip: AI_SKILL_HOME, LEOSIS_SKILLS_DIR, CLAUDE_SKILLS_DIR, HERMES_SKILLS_DIR veya CURSOR_RULES_DIR ile hedef klasörü değiştirebilirsin."
+echo "ℹ️  Tip: override the target folder with AI_SKILL_HOME, LEOSIS_SKILLS_DIR, CLAUDE_SKILLS_DIR, HERMES_SKILLS_DIR, or CURSOR_RULES_DIR."
 echo "💡 Optional: export USB_TELEMETRY=on to send anonymous install stats (target + pack + version, no PII)."
 `;
 }

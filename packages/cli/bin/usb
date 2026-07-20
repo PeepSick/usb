@@ -73,7 +73,16 @@ cmd_search() {
   fi
   local url="$USB_BASE_URL/api/skills?target=generic"
   info "Searching $USB_BASE_URL for '$query' ..."
-  curl -fsSL "$url" | python3 - "$query" <<'PY' || {
+
+  if command -v python3 >/dev/null 2>&1; then
+    # Script goes to a temp file (not stdin) so it never competes with the
+    # curl | python3 pipe below for python3's stdin — a heredoc on the same
+    # command as an input pipe silently wins over the pipe, which used to
+    # starve json.load(sys.stdin) of any data.
+    local script
+    script=$(mktemp)
+    trap 'rm -f "$script"' RETURN
+    cat > "$script" <<'PY'
 import json, sys
 query = sys.argv[1].lower() if len(sys.argv) > 1 else ""
 data = json.load(sys.stdin)
@@ -85,9 +94,11 @@ for s in hits[:30]:
     print(f"  {s['slug']:42s}  {s.get('category',''):20s}  {s.get('name','')}")
 print(f"\n{len(hits)} match(es).")
 PY
+    curl -fsSL "$url" | python3 "$script" "$query"
+  else
     warn "python3 not available — falling back to grep on full manifest"
     curl -fsSL "$url" | grep -iE "$query" | head -30 || true
-  }
+  fi
 }
 
 # --- info subcommand ---------------------------------------------------------
