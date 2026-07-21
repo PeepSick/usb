@@ -270,7 +270,11 @@ Before opening a PR that touches the CLI, installer, or this README, run
 against the live catalog and fails on errors, leaked tracebacks, or
 non-English regressions. `python3 scripts/check-encoding.py` scans the full
 529-skill catalog for double-encoding corruption (mojibake), not just the
-handful of skills the README happens to reference. CI runs both on every PR
+handful of skills the README happens to reference. `python3
+scripts/check-links.py` crawls the site's own pages (home, about, privacy,
+a sample playground page) and fails if any internal link 404s — this is
+the check that would have caught the "Try It Live" button once pointing at
+a query-string URL the router never matched. CI runs all three on every PR
 and daily on a schedule.
 
 ## Contact

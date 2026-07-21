@@ -1,9 +1,8 @@
-name: README examples
+name: Live site checks
 
-# Runs the exact commands documented in the README against the live catalog
-# API and fails if any of them error, silently leak a traceback, or regress
-# to non-English output. Catches drift between what the docs promise and
-# what the CLI actually does — see scripts/verify-readme.sh for details.
+# Three independent checks against the live production site — README
+# examples, catalog encoding, and internal link integrity — see the
+# corresponding scripts/ file for what each one actually does and why.
 
 on:
   push:
@@ -26,3 +25,6 @@ jobs:
 
       - name: Scan the full catalog for encoding corruption
         run: python3 scripts/check-encoding.py
+
+      - name: Check for broken internal links on the live site
+        run: python3 scripts/check-links.py
