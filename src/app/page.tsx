@@ -80,7 +80,7 @@ export default async function HomePage() {
 
             <div className="mt-8 flex flex-wrap gap-4">
               <a
-                href="/playground?slug=intent-router"
+                href="/playground/intent-router"
                 className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-purple-500 px-6 py-4 font-bold text-slate-950 transition hover:opacity-90 shadow-lg shadow-cyan-500/20 active:scale-98"
               >
                 <Sparkles className="h-5 w-5 fill-slate-950" />
