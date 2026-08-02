@@ -1,6 +1,10 @@
 # USB — Universal Skill Bridge
 
 <p align="center">
+  <img src="public/usbdemo.gif" alt="USB demo" width="960">
+</p>
+
+<p align="center">
   <img src="public/usb-logo.png" alt="USB — Universal Skill Bridge" width="640">
 </p>
 
@@ -87,9 +91,7 @@ USB is a packaging and distribution layer for that logic, the same way npm decou
 
 ## Demo
 
-<p align="center">
-  <img src="public/usb-demo.gif" alt="USB demo: multi-runtime autodetect + npm-install flow" width="960">
-</p>
+GIF shown above demonstrates the multi-runtime autodetect + npm-install flow.
 
 ## Installing skills
 
@@ -174,6 +176,8 @@ Transport is HTTP JSON-RPC 2.0. Exposed tools:
 | `/api/install?target=<name>` | Render the install script for a target |
 | `/api/install-sha256?target=<name>` | sha256 of the above, for verification |
 | `/api/skills` | Browse the skill catalog |
+| `/api/audit/<slug>` | Audit a single skill definition |
+| `/api/installations` | Track installation stats |
 | `/api/version` | CLI/catalog version info |
 | `/api/health` | Health check |
 | `/api/mcp` | MCP server (JSON-RPC 2.0) |
