@@ -1,9 +1,9 @@
 name: Live site checks
 
-# Four independent checks against the live production site — README
-# examples, the installer's interactive prompt, catalog encoding, and
-# internal link integrity — see the corresponding scripts/ file for what
-# each one actually does and why.
+# Five independent checks against the live production site — README
+# examples, the installer's interactive prompt, the installed layout each
+# runtime expects, catalog encoding, and internal link integrity — see the
+# corresponding scripts/ file for what each one actually does and why.
 
 on:
   push:
@@ -26,6 +26,9 @@ jobs:
 
       - name: Check the installer's interactive runtime picker
         run: python3 scripts/check-installer-prompt.py
+
+      - name: Check installed layouts match what each runtime reads
+        run: python3 scripts/check-target-formats.py
 
       - name: Scan the full catalog for encoding corruption
         run: python3 scripts/check-encoding.py

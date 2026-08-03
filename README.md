@@ -47,7 +47,7 @@ usb install intent-router            # install just one
 usb install web-dev --target=claude  # install a preset into a specific runtime
 ```
 
-`usb` detects your agent runtime — Claude Code, Cursor, MCP, LangChain, local models, and 12 more — and drops a runtime-native skill package in the right place.
+`usb` detects your agent runtime and installs the skills where it will find them — as `SKILL.md` skills for Claude Code, as a `.mdc` rule for Cursor, and as a portable markdown + JSON bundle for the other 12 targets.
 
 <p align="center">
   <img src="public/usbdemo.gif" alt="USB demo: npm install, search, and install flow" width="900">
@@ -64,8 +64,8 @@ $ usb install web-dev --target=claude
 
 ## Who is this for?
 
-- ✅ **Claude Code users** — skills drop straight into `~/.claude/skills/`
-- ✅ **Cursor users** — ships as a `.mdc` rule, zero extra config
+- ✅ **Claude Code users** — installs into `~/.claude/skills/` as loadable `SKILL.md` skills
+- ✅ **Cursor users** — writes a `.mdc` rule into your project's `.cursor/rules/`
 - ✅ **AI teams** — one shared skill catalog instead of copy-pasted prompts across repos
 - ✅ **MCP developers** — USB speaks MCP natively (`usb_search`, `usb_render_install`, ...)
 - ✅ **Framework authors** — `@peepsick/usb-sdk` gives you a typed `Agent` base class to build on
@@ -101,9 +101,17 @@ You write it once. USB handles packaging, install paths, and sha256-verified del
 
 ## Supported targets
 
-`leosis` · `auto` · `claude` · `hermes` · `openai` · `anthropic` · `langchain` · `cursor` · `mcp` · `generic` · `openrouter` · `groq` · `mistral` · `ollama` · `lm-studio` · `vllm`
+Targets come in two tiers, and it's worth being precise about which is which.
 
-`auto` detects the runtime from your environment; `generic` falls back to a plain markdown + JSON manifest for anything unrecognized. Catalog: 529 skills — 9 hand-written core skills plus 65 engineering domains × 8 workflows (Audit, Plan, Build, Script, Diagnose, Harden, Explain, Tune).
+**Installs into the runtime** — the runtime loads these on its own, no wiring:
+
+`claude` · `cursor` · `leosis` · `hermes`
+
+**Emits a portable bundle** — skill markdown plus a JSON adapter descriptor under `~/.ai-skills/adapters/<target>/`, ready to feed into your own agent code:
+
+`openai` · `anthropic` · `langchain` · `mcp` · `openrouter` · `groq` · `mistral` · `ollama` · `lm-studio` · `vllm` · `generic`
+
+`auto` detects the runtime from your environment; `generic` falls back to plain markdown + a JSON manifest for anything unrecognized. Catalog: 529 skills — 9 hand-written core skills plus 65 engineering domains × 8 workflows (Audit, Plan, Build, Script, Diagnose, Harden, Explain, Tune).
 
 ## Installing skills
 
@@ -184,9 +192,11 @@ You don't need to write code to help. Start with
 
 Before opening a PR that touches the CLI, installer, or this README, run
 `bash scripts/verify-readme.sh` (README examples against the live catalog),
-`python3 scripts/check-encoding.py` (full-catalog encoding scan), and
-`python3 scripts/check-links.py` (broken internal links). CI runs all three
-on every PR and daily on a schedule.
+`python3 scripts/check-installer-prompt.py` (the interactive picker over a
+pty), `python3 scripts/check-target-formats.py` (the installed layout against
+what each runtime actually loads), `python3 scripts/check-encoding.py`
+(full-catalog encoding scan), and `python3 scripts/check-links.py` (broken
+internal links). CI runs all five on every PR and daily on a schedule.
 
 ---
 

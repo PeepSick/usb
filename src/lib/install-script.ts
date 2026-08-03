@@ -21,8 +21,24 @@ function asToolName(slug: string): string {
   return slug.replace(/[^a-zA-Z0-9_]/g, "_");
 }
 
+// Single-line double-quoted YAML scalar. Skill descriptions and trigger
+// phrases are free text that can contain newlines and quotes, either of
+// which would break the frontmatter block they land in.
+function toYamlInline(value: string, maxLength = 0): string {
+  let collapsed = value.replace(/\s+/g, " ").trim();
+  if (maxLength && collapsed.length > maxLength) {
+    // Cut at a sentence boundary where one is close to the limit, so the
+    // description still reads as prose rather than stopping mid-word.
+    const clipped = collapsed.slice(0, maxLength);
+    const lastStop = clipped.lastIndexOf(". ");
+    collapsed = lastStop > maxLength * 0.6 ? clipped.slice(0, lastStop + 1) : `${clipped.trimEnd()}…`;
+  }
+  return `"${collapsed.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
 function toSkillMarkdown(skill: SkillBundle["skills"][number]): string {
   return `---
+description: ${toYamlInline(`${skill.description} ${skill.triggerPhrase}`, 400)}
 slug: ${skill.slug}
 name: ${skill.name}
 category: ${skill.category}
@@ -124,6 +140,51 @@ ${skillList}
 `;
 }
 
+// Claude Code discovers skills as `<skill-name>/SKILL.md` directories and
+// loads every skill's `description` up front to decide which to use. A
+// 529-skill catalog installed as 529 directories would put 529 descriptions
+// in context on every request, so the catalog installs as one router skill
+// with the individual skills alongside it as reference files — Claude reads
+// only the one it needs, and a skill's body costs nothing until it's used.
+function buildClaudeRouterSkill(bundle: SkillBundle): string {
+  const byCategory = new Map<string, string[]>();
+  for (const skill of bundle.skills) {
+    const list = byCategory.get(skill.category) ?? [];
+    list.push(skill.slug);
+    byCategory.set(skill.category, list);
+  }
+  const index = [...byCategory.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([category, slugs]) => `### ${category}\n${slugs.sort().join(", ")}`)
+    .join("\n\n");
+
+  return `---
+description: ${toYamlInline(
+    `${bundle.pack.name}: ${bundle.skills.length} engineering skills across ${byCategory.size} categories. Use when the user wants to audit, plan, build, script, diagnose, harden, explain, or tune a specific technology — databases, infrastructure, frontend, security, AI agents, and more.`,
+  )}
+---
+
+# ${bundle.pack.name}
+
+${bundle.skills.length} skills are installed as reference files in \`skills/\` next to this file.
+Each one carries a full protocol, input and output contracts, and worked examples.
+
+## How to use this
+
+1. Work out what the user is asking for: the technology involved, and the kind
+   of work — audit, plan, build, script, diagnose, harden, explain, or tune.
+2. Find the matching slug in the index below. Generated skills are named
+   \`<domain>-<workflow>\`, for example \`redis-caching-harden\`.
+3. Read \`skills/<slug>.md\` and follow its Protocol section.
+4. If nothing matches closely, say so and proceed normally rather than forcing
+   an unrelated skill.
+
+## Index
+
+${index}
+`;
+}
+
 function heredoc(destination: string, marker: string, content: string): string {
   // Belt and braces: markerFor() makes a collision computationally
   // infeasible, but if content ever does contain its terminator, refuse to
@@ -149,6 +210,7 @@ export function renderInstallScript(bundle: SkillBundle): string {
   const manifest = JSON.stringify(bundle, null, 2);
   const adapterDescriptor = JSON.stringify(buildAdapterDescriptor(bundle), null, 2);
   const cursorRules = buildCursorRules(bundle);
+  const claudeRouterSkill = buildClaudeRouterSkill(bundle);
   const skillFiles = bundle.skills
     .map((skill) => {
       const markdown = toSkillMarkdown(skill);
@@ -330,10 +392,28 @@ case "$TARGET" in
     do_or_show cp "$PACK_DIR/cursor-rule.mdc" "$DEST/$PACK_SLUG.mdc"
     ;;
   claude)
-    DEST="${"${CLAUDE_SKILLS_DIR:-$HOME/.claude/skills/$PACK_SLUG}"}"
+    # Claude Code discovers skills as <skill-name>/SKILL.md directories, not
+    # as loose .md files — dropping the pack in as flat markdown wrote real
+    # files that Claude then silently ignored.
+    DEST="${"${CLAUDE_SKILLS_DIR:-$HOME/.claude/skills}"}"
     do_or_show mkdir -p "$DEST"
-    do_or_show cp "$PACK_DIR/skills/"*.md "$DEST/"
-    do_or_show cp "$PACK_DIR/skillpack.json" "$DEST/skillpack.json"
+    if [ "$SKILL_COUNT" -le 10 ]; then
+      # A handful: each becomes its own directly-invocable /<slug> skill.
+      for __usb_src in "$PACK_DIR/skills/"*.md; do
+        __usb_slug=$(basename "$__usb_src" .md)
+        do_or_show mkdir -p "$DEST/$__usb_slug"
+        do_or_show cp "$__usb_src" "$DEST/$__usb_slug/SKILL.md"
+      done
+      unset __usb_src __usb_slug
+    else
+      # A catalog: one /usb router skill, with the skills beside it as
+      # reference files. Claude loads every skill's description up front to
+      # choose between them, so N directories would mean N descriptions in
+      # context on every request; a skill's body costs nothing until used.
+      do_or_show mkdir -p "$DEST/usb/skills"
+      do_or_show cp "$PACK_DIR/skills/"*.md "$DEST/usb/skills/"
+      do_or_show cp "$PACK_DIR/skillpack.json" "$DEST/usb/skillpack.json"
+${heredoc('"$DEST/usb/SKILL.md"', markerFor("CLAUDE_ROUTER", claudeRouterSkill), claudeRouterSkill)}    fi
     ;;
   hermes)
     DEST="${"${HERMES_SKILLS_DIR:-$HOME/.hermes/skills/$PACK_SLUG}"}"
@@ -343,9 +423,17 @@ case "$TARGET" in
     do_or_show cp "$PACK_DIR/adapter.bridge.json" "$DEST/adapter.bridge.json"
     ;;
   cursor)
-    DEST="${"${CURSOR_RULES_DIR:-$HOME/.cursor/rules}"}"
+    # Cursor reads project rules from .cursor/rules INSIDE the project;
+    # user-level rules are Settings-UI only, so a file written to
+    # ~/.cursor/rules is never read. Default to the current project and say
+    # where it went, since that only helps if you run this from the repo.
+    DEST="${"${CURSOR_RULES_DIR:-$PWD/.cursor/rules}"}"
     do_or_show mkdir -p "$DEST"
     do_or_show cp "$PACK_DIR/cursor-rule.mdc" "$DEST/$PACK_SLUG.mdc"
+    if [ "$USB_CHECK" != "1" ] && [ "${"${CURSOR_RULES_DIR:-}"}" = "" ]; then
+      printf '%s[i]%s Cursor rules are per-project. Installed into %s%s%s — run USB from another\n' "$CYA" "$RST" "$CYA" "$DEST" "$RST"
+      printf '    project (or set CURSOR_RULES_DIR) to install them there too.\n'
+    fi
     ;;
   openai|anthropic|openrouter|groq|mistral)
     DEST="$ROOT/adapters/$TARGET"
