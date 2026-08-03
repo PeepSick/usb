@@ -31,7 +31,12 @@ check() {
     FAILED=1
     return
   fi
-  if echo "$output" | grep -qiE "traceback|jsondecodeerror|errno [0-9]"; then
+  # "syntaxerror" and the fallback warnings are here because a broken inline
+  # Python snippet (a \" that reaches Python literally inside an f-string)
+  # printed a SyntaxError and then silently degraded to a raw-grep fallback,
+  # still exiting 0 — an earlier version of this check looked only for
+  # tracebacks and passed it.
+  if echo "$output" | grep -qiE "traceback|jsondecodeerror|errno [0-9]|syntaxerror|python3 not available|could not load"; then
     echo "❌ FAILED (error output leaked through): $desc"
     echo "$output" | tail -20
     FAILED=1
@@ -60,6 +65,7 @@ if hits:
 check "usb version"                          "${USB[@]}" version
 check "usb search postgres"                  "${USB[@]}" search postgres
 check "usb info intent-router"               "${USB[@]}" info intent-router
+check "usb list"                             "${USB[@]}" list
 check "usb install intent-router --dry-run"  "${USB[@]}" install intent-router --dry-run
 check "usb install web-dev --dry-run"        "${USB[@]}" install web-dev --dry-run
 

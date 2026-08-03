@@ -29,7 +29,7 @@ export function InstallConsole({ origin, targets }: InstallConsoleProps) {
   );
   const [toast, setToast] = useState<Toast | null>(null);
   const [copied, setCopied] = useState(false);
-  const fallbackInputRef = useRef<HTMLInputElement>(null);
+  const fallbackInputRef = useRef<HTMLTextAreaElement>(null);
 
   const cleanOrigin = useMemo(() => origin.replace(/\/$/, ""), [origin]);
   // Recommended: download → verify SHA-256 → inspect → run.
@@ -52,11 +52,13 @@ export function InstallConsole({ origin, targets }: InstallConsoleProps) {
     [cleanOrigin, target],
   );
   // npm: same installer, packaged as a published CLI — no raw curl | bash.
+  // Two lines rather than an `&&` chain: Windows PowerShell 5.1 (still the
+  // default shell on Windows) has no `&&` operator and fails to parse it.
   const npmCommand = useMemo(
     () =>
       target === "auto"
-        ? `npm install -g @peepsick/usb-cli && usb install`
-        : `npm install -g @peepsick/usb-cli && usb install --target=${target}`,
+        ? `npm install -g @peepsick/usb-cli\nusb install`
+        : `npm install -g @peepsick/usb-cli\nusb install --target=${target}`,
     [target],
   );
   const command =
@@ -237,10 +239,14 @@ export function InstallConsole({ origin, targets }: InstallConsoleProps) {
         <code className="mt-4 block whitespace-pre-wrap font-mono text-sm leading-relaxed text-cyan-200 select-all break-all">
           {command}
         </code>
-        <input
+        {/* textarea, not input: the npm command spans two lines and an
+            <input> silently strips the newline, joining them into one
+            unrunnable command when the execCommand fallback is used. */}
+        <textarea
           ref={fallbackInputRef}
           value={command}
           readOnly
+          rows={2}
           className="absolute -left-9999 opacity-0"
           aria-hidden="true"
         />

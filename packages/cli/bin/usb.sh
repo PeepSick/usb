@@ -117,11 +117,18 @@ cmd_info() {
 # --- list subcommand ---------------------------------------------------------
 cmd_list() {
   local url="$USB_BASE_URL/api/skills?target=generic"
+  # Bind to locals before formatting: this script is single-quoted for bash,
+  # so a nested \" reaches Python literally and is a syntax error inside an
+  # f-string expression — which silently dropped this command into the raw
+  # grep fallback below.
   curl -fsSL "$url" | python3 -c '
 import json, sys
 d = json.load(sys.stdin)
 for s in d["bundle"]["skills"]:
-    print(f"  {s[\"slug\"]:42s}  {s.get(\"category\",\"\"):20s}  {s.get(\"name\",\"\")}")
+    slug = s["slug"]
+    category = s.get("category", "")
+    name = s.get("name", "")
+    print(f"  {slug:42s}  {category:20s}  {name}")
 ' || {
     warn "python3 not available"
     curl -fsSL "$url" | grep -oE '"slug": "[^"]+"' | head -100
@@ -193,7 +200,9 @@ pick_slug() {
 import json, sys
 d = json.load(sys.stdin)
 for s in d["bundle"]["skills"]:
-    print(f"{s[\"slug\"]}|{s.get(\"name\", s[\"slug\"])}")
+    slug = s["slug"]
+    name = s.get("name", slug)
+    print(f"{slug}|{name}")
 ' 2>/dev/null)
   if [ -z "$items" ]; then
     err "Could not load skills"

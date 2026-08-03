@@ -41,9 +41,10 @@
 ```bash
 npm install -g @peepsick/usb-cli
 
-usb search postgres
-usb install intent-router
-usb install web-dev --target=claude
+usb install                          # detect the runtime, install the catalog
+usb search postgres                  # find a skill
+usb install intent-router            # install just one
+usb install web-dev --target=claude  # install a preset into a specific runtime
 ```
 
 `usb` detects your agent runtime — Claude Code, Cursor, MCP, LangChain, local models, and 12 more — and drops a runtime-native skill package in the right place.
@@ -56,7 +57,7 @@ Real output, not mocked up:
 
 ```bash
 $ usb install web-dev --target=claude
-✅ universal-skill-bridge-catalog v0.4.2 installed for target: claude (73 skills)
+✅ universal-skill-bridge-catalog v0.4.1 installed for target: claude (73 skills)
 📦 Portable pack: ~/.ai-skills/universal-skill-bridge-catalog
 🔌 Target files: ~/.claude/skills/universal-skill-bridge-catalog
 ```
@@ -136,7 +137,7 @@ Trust the publisher and skip the review step: `curl -fsSL https://usb.peepsickla
 | `usb install --dry-run` | Print the install script without executing it |
 | `usb install --target=<name>` | Force a specific provider target |
 | `usb search <query>` | Search the skill catalog |
-| `usb list` | List all installed skills |
+| `usb list` | List every skill in the catalog |
 | `usb info <skill>` | Show details for one skill |
 | `usb version` | Print CLI/catalog version and the verify command for one-shot inspect+verify+run |
 
@@ -194,7 +195,7 @@ on every PR and daily on a schedule.
 
 ### Status
 
-**v0.4.2 (beta)** — actively evolving. APIs, skill formats, and runtime adapters may change before v1.0.
+**v0.4.6 (beta)** — actively evolving. APIs, skill formats, and runtime adapters may change before v1.0.
 
 ### Roadmap
 

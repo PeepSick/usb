@@ -75,17 +75,17 @@ export default async function HomePage() {
               One skill format. Every agent runtime.
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-relaxed text-slate-300 select-text">
-              <strong className="text-cyan-200">Write a skill once, install it everywhere.</strong> USB is the bridge: a single portable skill format with sha256-verified installers for 16 runtimes — Claude Code, Cursor, MCP, LangChain, local models, and more — backed by a {skills.length}-skill catalog, one <code className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-sm text-cyan-200">npm install</code> away.
+              <strong className="text-cyan-200">Write once. Install anywhere.</strong> USB is the bridge: a single portable skill format with sha256-verified installers for 16 runtimes — Claude Code, Cursor, MCP, LangChain, local models, and more — backed by a {skills.length}-skill catalog, one <code className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-sm text-cyan-200">npm install</code> away.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-4">
-              <a
+              <Link
                 href="/playground/intent-router"
                 className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-purple-500 px-6 py-4 font-bold text-slate-950 transition hover:opacity-90 shadow-lg shadow-cyan-500/20 active:scale-98"
               >
                 <Sparkles className="h-5 w-5 fill-slate-950" />
                 Try It Live
-              </a>
+              </Link>
               <a
                 href="/api/install?target=auto"
                 target="_blank"
