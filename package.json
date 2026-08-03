@@ -1,6 +1,6 @@
 {
   "name": "usb",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Universal Skill Bridge — A plug-and-play skill system for AI agents. Learn, score, evolve and share skills across models.",
   "private": true,
   "license": "MIT",

@@ -1,7 +1,7 @@
 # USB — Universal Skill Bridge
 
 <p align="center">
-  <img src="public/usbdemo.gif" alt="USB demo" width="960">
+  <img src="public/usbdemo.gif" alt="USB demo: npm install, search, and install flow" width="960">
 </p>
 
 <p align="center">
@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  <b>npm for AI agent skills.</b><br>
-  Write a skill once. Run it anywhere — Claude, Cursor, LangChain, MCP, and 12 more.
+  <b>One skill format. Every agent runtime.</b><br>
+  Write a skill once, install it everywhere — Claude Code, Cursor, MCP, LangChain, and 12 more.
 </p>
 
 <p align="center">
@@ -235,7 +235,7 @@ That said, USB is a fully independent implementation built from scratch. All arc
 
 ## Status
 
-**v0.4.1 (beta)** — actively evolving. APIs, skill formats, and runtime adapters may change before v1.0.
+**v0.4.2 (beta)** — actively evolving. APIs, skill formats, and runtime adapters may change before v1.0.
 
 ## Roadmap
 
