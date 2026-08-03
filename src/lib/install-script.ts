@@ -256,6 +256,7 @@ if [ "$TARGET" = "auto" ]; then
     printf '  %s\n' "\${__USB_DETECTED[*]}"
     PS3=$'\n  Which one should USB install into? (number): '
     select __USB_CHOICE in "\${__USB_DETECTED[@]}" "generic (custom path)" "Cancel"; do
+      REPLY="\${REPLY%\$'\\r'}"
       case "$REPLY" in
         [1-9])
           if [ "$__USB_CHOICE" = "Cancel" ]; then

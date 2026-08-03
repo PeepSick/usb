@@ -193,6 +193,7 @@ for s in d["bundle"]["skills"]:
   printf '\n  Number: '
   local pick
   read -r pick
+  pick="${pick%$'\r'}"
   [ -z "$pick" ] && return 1
   printf '%s\n' "$items" | sed -n "${pick}p" | cut -d'|' -f1
 }
@@ -231,6 +232,7 @@ for domain, name in order:
   printf '\n  Number: '
   local pick
   read -r pick
+  pick="${pick%$'\r'}"
   [ -z "$pick" ] && return 1
   printf '%s\n' "$items" | sed -n "${pick}p" | cut -d'|' -f1
 }
@@ -257,6 +259,7 @@ for cat, n in counts.most_common():
   printf '\n  Number: '
   local pick
   read -r pick
+  pick="${pick%$'\r'}"
   [ -z "$pick" ] && return 1
   printf '%s\n' "$items" | sed -n "${pick}p" | cut -d'|' -f1
 }
@@ -281,6 +284,7 @@ pick_preset() {
   printf '\n  Number: '
   local pick
   read -r pick
+  pick="${pick%$'\r'}"
   [ -z "$pick" ] && return 1
   if ! [[ "$pick" =~ ^[0-9]+$ ]]; then return 1; fi
   local entry="${presets[$((pick-1))]}"
@@ -313,6 +317,7 @@ cmd_interactive() {
   )
   PS3=$'\n  Choose a number (1-8): '
   select opt in "${choices[@]}"; do
+    REPLY="${REPLY%$'\r'}"
     case "$REPLY" in
       1)
         cmd_install
@@ -358,11 +363,13 @@ cmd_interactive() {
         local query
         printf '\n  Search term: '
         read -r query
+        query="${query%$'\r'}"
         if [ -n "$query" ]; then
           cmd_search "$query"
           printf '\n  Install one of these? Enter slug (or empty to skip): '
           local picked
           read -r picked
+          picked="${picked%$'\r'}"
           if [ -n "$picked" ]; then
             cmd_install "$picked"
           fi
