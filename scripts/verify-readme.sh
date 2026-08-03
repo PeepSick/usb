@@ -17,7 +17,7 @@
 # which defeats the checks below without any error. Failures are instead
 # caught explicitly via exit codes and content greps.
 
-USB=(${USB_BIN:-bash packages/cli/bin/usb})
+USB=(${USB_BIN:-bash packages/cli/bin/usb.sh})
 FAILED=0
 
 check() {
