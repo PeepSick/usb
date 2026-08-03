@@ -254,24 +254,64 @@ if [ "$TARGET" = "auto" ]; then
   else
     printf '\n%s  Multiple AI runtimes detected on this machine:%s\n' "$CYA" "$RST"
     printf '  %s\n' "\${__USB_DETECTED[*]}"
-    PS3=$'\n  Which one should USB install into? (number): '
-    select __USB_CHOICE in "\${__USB_DETECTED[@]}" "generic (custom path)" "Cancel"; do
-      REPLY="\${REPLY%\$'\\r'}"
-      case "$REPLY" in
-        [1-9])
-          if [ "$__USB_CHOICE" = "Cancel" ]; then
-            printf '%s[x]%s Cancelled.\n' "$RED" "$RST"
-            exit 1
-          fi
+
+    # Where the answer is read from matters. Under \`curl ... | bash\` — the
+    # documented one-liner, and what the CLI itself used to do — stdin is the
+    # pipe carrying this script's own remaining text, not the keyboard. A bare
+    # \`select\` there eats those leftover script lines as answers, prints
+    # "Invalid choice" once per line, and never waits for the user. The real
+    # terminal is /dev/tty, so prefer that whenever stdin isn't already one.
+    __USB_INPUT=""
+    if [ -t 0 ]; then
+      __USB_INPUT="/dev/stdin"
+    elif [ -r /dev/tty ] && (exec < /dev/tty) 2>/dev/null; then
+      __USB_INPUT="/dev/tty"
+    fi
+
+    if [ -z "$__USB_INPUT" ]; then
+      # Truly non-interactive (CI, no tty). Never loop — pick and say so.
+      TARGET="\${__USB_DETECTED[0]}"
+      printf '%s[!]%s No terminal attached — defaulting to %s%s%s.\n' "$YEL" "$RST" "$CYA" "$TARGET" "$RST"
+      printf '    Pass --target=<name> or set USB_TARGET=<name> to choose explicitly.\n'
+    else
+      __USB_OPTIONS=("\${__USB_DETECTED[@]}" "generic (custom path)" "Cancel")
+      PS3=$'\n  Which one should USB install into? (number): '
+      select __USB_CHOICE in "\${__USB_OPTIONS[@]}"; do
+        # Windows terminals deliver Enter as CRLF, leaving a trailing \\r in
+        # REPLY. select resolves the option before we can strip it, so on a
+        # miss re-resolve by index from the stripped REPLY.
+        REPLY="\${REPLY%\$'\\r'}"
+        if [ -z "$__USB_CHOICE" ]; then
+          case "$REPLY" in
+            ''|*[!0-9]*) ;;
+            *) __USB_CHOICE="\${__USB_OPTIONS[$((REPLY-1))]:-}" ;;
+          esac
+        fi
+        if [ -z "$__USB_CHOICE" ]; then
+          printf '%s[!]%s Invalid choice.\n' "$YEL" "$RST"
+          continue
+        fi
+        if [ "$__USB_CHOICE" = "Cancel" ]; then
+          printf '%s[x]%s Cancelled.\n' "$RED" "$RST"
+          exit 1
+        fi
+        if [ "$__USB_CHOICE" = "generic (custom path)" ]; then
+          TARGET="generic"
+        else
           TARGET="$__USB_CHOICE"
-          printf '%s[OK]%s Selected: %s%s%s\n' "$GRN" "$RST" "$CYA" "$TARGET" "$RST"
-          break
-          ;;
-        *) printf '%s[!]%s Invalid choice.\n' "$YEL" "$RST" ;;
-      esac
-    done
+        fi
+        printf '%s[OK]%s Selected: %s%s%s\n' "$GRN" "$RST" "$CYA" "$TARGET" "$RST"
+        break
+      done < "$__USB_INPUT"
+
+      # select leaves its loop on EOF (Ctrl-D) without ever assigning TARGET.
+      if [ "$TARGET" = "auto" ]; then
+        TARGET="\${__USB_DETECTED[0]}"
+        printf '\n%s[!]%s No selection made — defaulting to %s%s%s.\n' "$YEL" "$RST" "$CYA" "$TARGET" "$RST"
+      fi
+    fi
   fi
-  unset __USB_DETECTED __USB_DETECT_COUNT __USB_CHOICE
+  unset __USB_DETECTED __USB_DETECT_COUNT __USB_CHOICE __USB_OPTIONS __USB_INPUT
 fi
 
 do_or_show mkdir -p "$PACK_DIR/skills" "$ROOT/adapters/$TARGET"

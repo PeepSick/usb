@@ -1,8 +1,9 @@
 name: Live site checks
 
-# Three independent checks against the live production site — README
-# examples, catalog encoding, and internal link integrity — see the
-# corresponding scripts/ file for what each one actually does and why.
+# Four independent checks against the live production site — README
+# examples, the installer's interactive prompt, catalog encoding, and
+# internal link integrity — see the corresponding scripts/ file for what
+# each one actually does and why.
 
 on:
   push:
@@ -22,6 +23,9 @@ jobs:
 
       - name: Run README examples against the live catalog
         run: bash scripts/verify-readme.sh
+
+      - name: Check the installer's interactive runtime picker
+        run: python3 scripts/check-installer-prompt.py
 
       - name: Scan the full catalog for encoding corruption
         run: python3 scripts/check-encoding.py

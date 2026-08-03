@@ -63,57 +63,31 @@ check "usb info intent-router"               "${USB[@]}" info intent-router
 check "usb install intent-router --dry-run"  "${USB[@]}" install intent-router --dry-run
 check "usb install web-dev --dry-run"        "${USB[@]}" install web-dev --dry-run
 
-# --- CRLF regression checks ---------------------------------------------------
-# Windows terminals (PowerShell/CMD via Git Bash) can deliver Enter as \r\n,
-# leaving a trailing \r in whatever `select`/`read` captured. `case "$REPLY"
-# in [1-9])` never matches "1\r", so every interactive picker looped forever
-# printing "Invalid choice" instead of ever accepting input — it worked fine
-# on Unix and was invisible in CI until a real Windows user hit it. Simulate
-# that exact input (a literal "1\r\n", not "1\n") against both pickers so
-# this can't silently come back.
-check_crlf_picker() {
-  local desc="$1" input="$2" success_marker="$3"
-  shift 3
-  echo "── $desc"
-  local output
-  output=$(printf "$input" | timeout 20 "$@" 2>&1)
-  local rc=$?
-  if [ "$rc" != 0 ]; then
-    echo "❌ FAILED (non-zero exit or timed out — CRLF input likely hung the picker): $desc"
-    echo "$output" | tail -20
-    FAILED=1
-    return
-  fi
-  if echo "$output" | grep -q "Invalid choice"; then
-    echo "❌ FAILED (CRLF input rejected — the Windows infinite-loop bug is back): $desc"
-    echo "$output" | tail -20
-    FAILED=1
-    return
-  fi
-  if ! echo "$output" | grep -q "$success_marker"; then
-    echo "❌ FAILED (expected success marker '$success_marker' not found): $desc"
-    echo "$output" | tail -20
-    FAILED=1
-    return
-  fi
+# The installer's interactive picker has its own dedicated regression suite —
+# it needs a pseudo-terminal to test honestly, which is awkward in bash.
+# See scripts/check-installer-prompt.py (also wired into CI).
+
+# The CLI's own menu shares the CRLF hazard: Windows terminals deliver Enter
+# as \r\n, leaving a trailing \r that stops `select` matching an option.
+# Option 8 (Exit) needs no follow-up input and no network side effects, so it
+# isolates that cleanly.
+echo "── usb CLI: interactive menu accepts CRLF input"
+crlf_out=$(printf '8\r\n' | timeout 30 "${USB[@]}" i 2>&1)
+if [ $? != 0 ]; then
+  echo "❌ FAILED (non-zero exit or hang on CRLF input)"
+  echo "$crlf_out" | tail -20
+  FAILED=1
+elif echo "$crlf_out" | grep -q "Invalid choice"; then
+  echo "❌ FAILED (CRLF input rejected — the trailing \\r is not being stripped)"
+  echo "$crlf_out" | tail -20
+  FAILED=1
+elif ! echo "$crlf_out" | grep -q "Bye!"; then
+  echo "❌ FAILED (menu never acted on the selection)"
+  echo "$crlf_out" | tail -20
+  FAILED=1
+else
   echo "✅ OK"
-}
-
-# The server-rendered install script's runtime picker only appears when
-# multiple runtimes are auto-detected, so fake a HOME with several present.
-crlf_fake_home=$(mktemp -d)
-mkdir -p "$crlf_fake_home/.claude" "$crlf_fake_home/.cursor" "$crlf_fake_home/.hermes"
-curl -fsSL "https://usb.peepsicklabs.com/api/install?target=auto" -o "$crlf_fake_home/install.sh" 2>/dev/null
-check_crlf_picker "install script: multi-runtime picker accepts CRLF input" \
-  '1\r\n' "installed for target: claude" \
-  env HOME="$crlf_fake_home" bash "$crlf_fake_home/install.sh"
-rm -rf "$crlf_fake_home"
-
-# Option 8 (Exit) needs no follow-up input and no network side effects, so
-# it isolates the same select/REPLY bug in the CLI's own menu cleanly.
-check_crlf_picker "usb CLI: interactive menu accepts CRLF input" \
-  '8\r\n' "Bye!" \
-  "${USB[@]}" i
+fi
 
 echo
 if [ "$FAILED" = "1" ]; then

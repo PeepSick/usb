@@ -165,7 +165,23 @@ cmd_install() {
   fi
 
   info "Installing via $url ..."
-  curl -fsSL "$url" | bash
+  # Download to a file rather than `curl | bash`: piping makes the installer's
+  # stdin the pipe carrying its own script text, so its interactive runtime
+  # picker consumes those leftover lines as answers instead of ever waiting
+  # for the user. Running it as a file argument leaves stdin on the terminal.
+  local script
+  script=$(mktemp) || { err "Could not create a temp file"; exit 1; }
+  if ! curl -fsSL "$url" -o "$script"; then
+    rm -f "$script"
+    err "Could not download the installer from $url"
+    exit 1
+  fi
+  bash "$script"
+  local rc=$?
+  rm -f "$script"
+  if [ "$rc" != 0 ]; then
+    exit "$rc"
+  fi
   ok "Done."
 }
 
