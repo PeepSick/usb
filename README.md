@@ -1,16 +1,12 @@
 # USB — Universal Skill Bridge
 
 <p align="center">
-  <img src="public/usbdemo.gif" alt="USB demo: npm install, search, and install flow" width="960">
-</p>
-
-<p align="center">
   <img src="public/usb-logo.png" alt="USB — Universal Skill Bridge" width="640">
 </p>
 
 <p align="center">
   <b>One skill format. Every agent runtime.</b><br>
-  Write a skill once, install it everywhere — Claude Code, Cursor, MCP, LangChain, and 12 more.
+  Write once. Install anywhere.
 </p>
 
 <p align="center">
@@ -50,37 +46,32 @@ usb install intent-router
 usb install web-dev --target=claude
 ```
 
-That's it — `usb` detects your agent runtime (Claude, Cursor, LangChain, MCP, local models, ...) and drops a runtime-native skill package in the right place.
+`usb` detects your agent runtime — Claude Code, Cursor, MCP, LangChain, local models, and 12 more — and drops a runtime-native skill package in the right place.
 
-## See it in action
+<p align="center">
+  <img src="public/usbdemo.gif" alt="USB demo: npm install, search, and install flow" width="900">
+</p>
 
-Real output from the live catalog (v0.4.1) — not mocked up:
-
-```bash
-$ usb search postgres
-  database-migration-safety-audit             Audit                 Database Migration Safety: Audit
-  multi-tenant-isolation-audit                Audit                 Multi-Tenant Data Isolation: Audit
-  database-migration-safety-script            Automation            Database Migration Safety: Script
-  multi-tenant-isolation-script               Automation            Multi-Tenant Data Isolation: Script
-  database-migration-safety-diagnose          Diagnostics           Database Migration Safety: Diagnose
-  multi-tenant-isolation-diagnose             Diagnostics           Multi-Tenant Data Isolation: Diagnose
-  ...
-16 match(es).
-```
+Real output, not mocked up:
 
 ```bash
 $ usb install web-dev --target=claude
-✅ universal-skill-bridge-catalog v0.4.1 installed for target: claude (73 skills)
+✅ universal-skill-bridge-catalog v0.4.2 installed for target: claude (73 skills)
 📦 Portable pack: ~/.ai-skills/universal-skill-bridge-catalog
 🔌 Target files: ~/.claude/skills/universal-skill-bridge-catalog
-📝 Local registry: ~/.ai-skills/universal-skill-bridge-catalog/installed.json
 ```
+
+## Who is this for?
+
+- ✅ **Claude Code users** — skills drop straight into `~/.claude/skills/`
+- ✅ **Cursor users** — ships as a `.mdc` rule, zero extra config
+- ✅ **AI teams** — one shared skill catalog instead of copy-pasted prompts across repos
+- ✅ **MCP developers** — USB speaks MCP natively (`usb_search`, `usb_render_install`, ...)
+- ✅ **Framework authors** — `@peepsick/usb-sdk` gives you a typed `Agent` base class to build on
 
 ## Why USB?
 
 Every agent runtime invents its own way to package capabilities: Claude Code has skills, Cursor has rules, LangChain has tools, MCP has servers. There's no shared unit you can install once and reuse everywhere — so the same "audit this Dockerfile" or "harden this API" logic gets rewritten from scratch for every framework.
-
-USB is a packaging and distribution layer for that logic, the same way npm decoupled "a piece of JavaScript" from "the app that runs it":
 
 | | Without USB | With USB |
 |---|---|---|
@@ -89,13 +80,33 @@ USB is a packaging and distribution layer for that logic, the same way npm decou
 | Discovery | Scattered gists and Notion docs | `usb search`, `/api/skills`, MCP tools |
 | Trust | Blind `curl \| bash` | Download → verify sha256 → read → run |
 
-## Demo
+## Architecture
 
-GIF shown above demonstrates the multi-runtime autodetect + npm-install flow.
+One skill definition. USB compiles it into every runtime's native format.
+
+```mermaid
+flowchart LR
+    S[Skill] --> C{USB Compiler}
+    C --> R1[Claude Code]
+    C --> R2[Cursor]
+    C --> R3[MCP]
+    C --> R4[OpenAI]
+    C --> R5[LangChain]
+    C --> R6[LeoSis]
+    C --> R7[+ 10 more]
+```
+
+You write it once. USB handles packaging, install paths, and sha256-verified delivery for all 16 targets.
+
+## Supported targets
+
+`leosis` · `auto` · `claude` · `hermes` · `openai` · `anthropic` · `langchain` · `cursor` · `mcp` · `generic` · `openrouter` · `groq` · `mistral` · `ollama` · `lm-studio` · `vllm`
+
+`auto` detects the runtime from your environment; `generic` falls back to a plain markdown + JSON manifest for anything unrecognized. Catalog: 529 skills — 9 hand-written core skills plus 65 engineering domains × 8 workflows (Audit, Plan, Build, Script, Diagnose, Harden, Explain, Tune).
 
 ## Installing skills
 
-**npm (recommended)** — installs the `usb` CLI globally:
+**npm (recommended)**:
 
 ```bash
 npm install -g @peepsick/usb-cli
@@ -108,21 +119,14 @@ usb install --target=claude   # force a specific runtime target
 **Inspect-then-install** — no npm/Node required, verifies the script before running it:
 
 ```bash
-# 1. Download
 curl -fsSL https://usb.peepsicklabs.com/api/install?target=auto -o install.sh
-
-# 2. Verify checksum (mismatches mean tampering or a stale CDN)
 EXPECTED=$(curl -fsSL https://usb.peepsicklabs.com/api/install-sha256?target=auto)
-echo "$EXPECTED  install.sh" | sha256sum -c -
-
-# 3. Read what it actually does
-less install.sh
-
-# 4. Run it
+echo "$EXPECTED  install.sh" | sha256sum -c -   # mismatch = tampering or a stale CDN
+less install.sh                                  # read what it actually does
 bash install.sh
 ```
 
-If you'd rather skip the review step and trust the publisher, the same script also runs directly via `curl -fsSL https://usb.peepsicklabs.com/api/install?target=auto | bash` — but the three-step flow above is the one we recommend.
+Trust the publisher and skip the review step: `curl -fsSL https://usb.peepsicklabs.com/api/install?target=auto | bash`
 
 ## CLI reference
 
@@ -136,38 +140,10 @@ If you'd rather skip the review step and trust the publisher, the same script al
 | `usb info <skill>` | Show details for one skill |
 | `usb version` | Print CLI/catalog version and the verify command for one-shot inspect+verify+run |
 
-Dry-run everything before it touches your machine:
-
 ```bash
 usb install --dry-run                  # print the install script, do NOT execute
-usb install intent-router --dry-run    # dry-run a single skill
 less <(usb install --dry-run web-dev)  # dry-run a preset and pipe to less
 ```
-
-## The catalog
-
-529 skills total: 9 hand-written core orchestration skills, plus 65 engineering domains systematically expanded across 8 workflows (Audit, Plan, Build, Script, Diagnose, Harden, Explain, Tune). Every skill ships with a distinct trigger phrase, protocol prompt, input/output contract, and examples.
-
-## MCP server
-
-USB also speaks MCP directly, so any MCP-compatible agent can search and install skills without shelling out:
-
-```bash
-curl https://usb.peepsicklabs.com/api/mcp
-
-curl -X POST https://usb.peepsicklabs.com/api/mcp \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
-```
-
-Transport is HTTP JSON-RPC 2.0. Exposed tools:
-
-| Tool | Purpose |
-|---|---|
-| `usb_search` | Search the skill catalog |
-| `usb_get_skill` | Fetch a single skill's full definition |
-| `usb_audit_skill` | Audit a skill definition for issues |
-| `usb_render_install` | Render an install script for a skill/target pair |
 
 ## API
 
@@ -177,43 +153,15 @@ Transport is HTTP JSON-RPC 2.0. Exposed tools:
 | `/api/install-sha256?target=<name>` | sha256 of the above, for verification |
 | `/api/skills` | Browse the skill catalog |
 | `/api/audit/<slug>` | Audit a single skill definition |
-| `/api/installations` | Track installation stats |
 | `/api/version` | CLI/catalog version info |
 | `/api/health` | Health check |
-| `/api/mcp` | MCP server (JSON-RPC 2.0) |
+| `/api/mcp` | MCP server — HTTP JSON-RPC 2.0, tools: `usb_search`, `usb_get_skill`, `usb_audit_skill`, `usb_render_install` |
 
-## Architecture
-
-The core idea: one skill definition, rendered into every runtime's native format. You write it once — USB handles the packaging for all 16 targets.
-
-```mermaid
-flowchart LR
-    S[One skill definition] --> R{Installer Generator}
-    R --> T1[Claude Code: SKILL.md]
-    R --> T2[Cursor: .mdc rule]
-    R --> T3[MCP: tool descriptor]
-    R --> T4[LangChain / OpenAI /<br>Anthropic: tool JSON]
-    R --> T5[12 more targets]
+```bash
+curl -X POST https://usb.peepsicklabs.com/api/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
-
-Request flow, end to end:
-
-```mermaid
-flowchart LR
-    A[Agent / Developer] -->|usb CLI or MCP| B[USB Catalog API]
-    B --> C[Skill Engine]
-    C --> D[Installer Generator]
-    D -->|sha256-verified script| E[Runtime Adapter]
-    E --> F[AI Runtime: Claude, Cursor,<br>LangChain, MCP, local models, ...]
-```
-
-## Supported targets
-
-16 runtimes, one skill format:
-
-`leosis` · `auto` · `claude` · `hermes` · `openai` · `anthropic` · `langchain` · `cursor` · `mcp` · `generic` · `openrouter` · `groq` · `mistral` · `ollama` · `lm-studio` · `vllm`
-
-`auto` detects the runtime from your environment; `generic` falls back to a plain markdown + JSON manifest for anything unrecognized.
 
 ## Local development
 
@@ -223,43 +171,7 @@ cd usb
 docker compose up -d
 ```
 
-Open <http://localhost:3000>.
-
-Stack: Next.js 16, React 19, Tailwind v4, PostgreSQL + Drizzle ORM.
-
-## Acknowledgements & origin
-
-Parts of the conceptual design of portable "AI skills" were inspired by emerging agent ecosystems — MCP-style tool servers, Claude Code agent workflows, and community skill catalogs such as mcpservers.org. These helped shape the broader direction of composable AI tooling.
-
-That said, USB is a fully independent implementation built from scratch. All architecture, skill schema, installer logic, and runtime adapters were designed and implemented independently. No prompt template, skill record, or installer script was copied or scraped from any external catalog.
-
-## Status
-
-**v0.4.2 (beta)** — actively evolving. APIs, skill formats, and runtime adapters may change before v1.0.
-
-## Roadmap
-
-- Skill marketplace
-- Verified skill badges
-- CI-based skill validation (schema/lint checks for new skill submissions)
-- README-driven test harness — auto-extract and run labeled code blocks from this file in CI, instead of hand-syncing `scripts/verify-readme.sh`
-- Versioned skill contracts
-- Agent runtime certification layer
-
-## PeepSick Labs
-
-PeepSick Labs is an early-stage AI infrastructure studio building modular agent systems. We are currently pre-incorporation, operating as an independent research & development group, and we build in public.
-
-Our ecosystem:
-
-| Layer | Role |
-|---|---|
-| **USB** | Installs skills (skill layer for AI agents — this project) |
-| **Foundry** | Builds agents (multi-agent orchestration & cognitive runtime) |
-| **Leosis** | Powers intelligence (OpenAI-compatible LLM provider) |
-
-> USB installs skills. Foundry builds agents. Leosis powers intelligence.
-> Three independent layers, one ecosystem — each ships standalone, each composes with the others.
+Open <http://localhost:3000>. Stack: Next.js 16, React 19, Tailwind v4, PostgreSQL + Drizzle ORM.
 
 ## Contributing
 
@@ -270,29 +182,53 @@ You don't need to write code to help. Start with
 [info@peepsickai.com](mailto:info@peepsickai.com) instead of the public tracker.
 
 Before opening a PR that touches the CLI, installer, or this README, run
-`bash scripts/verify-readme.sh` — it runs the commands documented above
-against the live catalog and fails on errors, leaked tracebacks, or
-non-English regressions. `python3 scripts/check-encoding.py` scans the full
-529-skill catalog for double-encoding corruption (mojibake), not just the
-handful of skills the README happens to reference. `python3
-scripts/check-links.py` crawls the site's own pages (home, about, privacy,
-a sample playground page) and fails if any internal link 404s — this is
-the check that would have caught the "Try It Live" button once pointing at
-a query-string URL the router never matched. CI runs all three on every PR
-and daily on a schedule.
+`bash scripts/verify-readme.sh` (README examples against the live catalog),
+`python3 scripts/check-encoding.py` (full-catalog encoding scan), and
+`python3 scripts/check-links.py` (broken internal links). CI runs all three
+on every PR and daily on a schedule.
 
-## Contact
+---
 
-**PeepSick Labs**
+<details>
+<summary>Status, roadmap, license, ecosystem</summary>
+
+### Status
+
+**v0.4.2 (beta)** — actively evolving. APIs, skill formats, and runtime adapters may change before v1.0.
+
+### Roadmap
+
+- Skill marketplace
+- Verified skill badges
+- CI-based skill validation (schema/lint checks for new skill submissions)
+- README-driven test harness — auto-extract and run labeled code blocks from this file in CI, instead of hand-syncing `scripts/verify-readme.sh`
+- Versioned skill contracts
+- Agent runtime certification layer
+
+### Acknowledgements & origin
+
+Parts of the conceptual design of portable "AI skills" were inspired by emerging agent ecosystems — MCP-style tool servers, Claude Code agent workflows, and community skill catalogs such as mcpservers.org. That said, USB is a fully independent implementation built from scratch. No prompt template, skill record, or installer script was copied or scraped from any external catalog.
+
+### PeepSick Labs ecosystem
+
+PeepSick Labs is an early-stage AI infrastructure studio, currently pre-incorporation, building in public.
+
+| Layer | Role |
+|---|---|
+| **USB** | Installs skills (skill layer for AI agents — this project) |
+| **Foundry** | Builds agents (multi-agent orchestration & cognitive runtime) |
+| **Leosis** | Powers intelligence (OpenAI-compatible LLM provider) |
+
+### Contact
 
 - Web: [usb.peepsicklabs.com](https://usb.peepsicklabs.com)
 - Email: [info@peepsickai.com](mailto:info@peepsickai.com)
 - GitHub: [github.com/PeepSick](https://github.com/PeepSick)
 
-## License
+### License
 
 MIT — free to use, modify, and redistribute, including commercially.
 
----
+</details>
 
 <sub>Building in public · Pre-incorporation · No legal entity formed yet · 2026</sub>
