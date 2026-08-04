@@ -77,7 +77,7 @@ Every agent runtime invents its own way to package capabilities: Claude Code has
 | | Without USB | With USB |
 |---|---|---|
 | Distribution | Copy-paste prompts between repos | `usb install <skill>` |
-| Portability | Rewritten per framework | One skill, 16 runtime targets |
+| Portability | Rewritten per framework | One skill, 16 targets — 4 installed natively, 12 as a portable bundle |
 | Discovery | Scattered gists and Notion docs | `usb search`, `/api/skills`, MCP tools |
 | Trust | Blind `curl \| bash` | Download → verify sha256 → read → run |
 
