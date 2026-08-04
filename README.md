@@ -41,17 +41,20 @@
 ```bash
 npm install -g @peepsick/usb-cli
 
-usb install                          # detect the runtime, install the catalog
+usb install
+```
+
+USB detects every AI runtime installed on your machine and installs natively where it can — `SKILL.md` skills for Claude Code, a `.mdc` rule for Cursor. If it finds more than one, it asks which:
+
+<p align="center">
+  <img src="public/usb-multiselect-demo.gif" alt="USB demo: npm install, usb install, runtime auto-detection, picking a target, and a successful install" width="900">
+</p>
+
+```bash
 usb search postgres                  # find a skill
 usb install intent-router            # install just one
 usb install web-dev --target=claude  # install a preset into a specific runtime
 ```
-
-`usb` detects your agent runtime and installs the skills where it will find them — as `SKILL.md` skills for Claude Code, as a `.mdc` rule for Cursor, and as a portable markdown + JSON bundle for the other 12 targets.
-
-<p align="center">
-  <img src="public/usbdemo.gif" alt="USB demo: npm install, search, and install flow" width="900">
-</p>
 
 Real output, not mocked up:
 
