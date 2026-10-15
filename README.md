@@ -1,7 +1,17 @@
 # USB — Universal Skill Bridge
 
 <p align="center">
-  <img src="public/usb-logo.png" alt="USB — Universal Skill Bridge" width="640">
+  <img src="public/usblg.png" alt="USB — Universal Systems Bridge" width="560">
+</p>
+
+<p align="center">
+  <b>This repository is the Universal Skill Bridge — v0.4.x, frozen but still installable.</b><br>
+  The project continues as <b>Universal Systems Bridge</b> →
+  <a href="https://github.com/PeepSick/usbplus"><b>github.com/PeepSick/usbplus</b></a>
+</p>
+
+<p align="center">
+  <img src="public/usb-handoff.gif" alt="Terminal: usb 0.4.7 (universal-skill-bridge) — frozen in this repository, continues as Universal Systems Bridge at github.com/PeepSick/usbplus" width="900">
 </p>
 
 <p align="center">
