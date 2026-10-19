@@ -1,3 +1,19 @@
+> USB+ is now live: https://github.com/PeepSick/usbplus
+>
+> USB has evolved into USB+, a unified platform for discovering, verifying, and installing AI capabilities across runtimes.
+>
+> The new platform brings together the skill catalog, cross-runtime installation, and the Trust Layer — including usb secscan for skill contract verification and usb mcprobe for runtime observation of MCP servers.
+>
+> Explore the live platform: https://usbplus.peepsicklabs.com/
+>
+> Current version: v1.0.5
+>
+> License: MIT
+>
+> This repository represents the earlier USB implementation. For the latest documentation, CLI usage, catalog, API endpoints, and installation instructions, visit the official USB+ platform.
+>
+> — PeepSick Labs
+
 # USB — Universal Skill Bridge
 
 <p align="center">
